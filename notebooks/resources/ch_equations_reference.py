@@ -51,10 +51,10 @@ def eq1_step0(mo):
     **Beauty contest:** the step-0 guess is uniform over $[0, 100]$, with mean
     $50$ -- this seeds $s_0 = 50$ in the guess recursion (Equation 7).
 
-    **Stag hunt:** the step-0 population randomizes with full support over
-    {Stag, Hare}. That full-support randomization is exactly what guarantees a
-    1-step thinker never plays a weakly dominated strategy (see the dominance
-    note near Equation 7).
+    **Stag hunt:** a step-0 player picks Stag or Hare with probability $1/2$
+    each. This $1/2$ is the only input a step-1 player has, so it single-handedly
+    determines which side of the Stag/Hare threshold step 1 lands on -- and, as
+    the stag hunt section at the end shows, every higher level follows step 1.
     """)
     return
 
@@ -140,14 +140,19 @@ def eq3_poisson(mo):
       thinking.
     - $\tau$ -- the model's single free parameter: simultaneously the mean and
       the variance of the distribution.
-    - $\tau^k$ -- grows with $k$; reaching a deeper level requires more of
-      whatever $\tau$ represents.
-    - $k!$ -- the combinatorial cost of nested reasoning: a step-$k$ thinker
-      must redo every computation a step-$(k-1)$ thinker does, then add one
-      more, so the "cost" of going one level deeper compounds.
-    - $e^{-\tau}$ -- the normalizing constant. Note that plugging in $k=0$ gives
-      $f(0) = e^{-\tau}$ directly -- this constant *is* the model's predicted
-      share of purely non-strategic (step-0) players.
+    - $\tau^k / k!$ -- together these set the *shape*. The key property is the
+      ratio between neighbouring levels:
+      $$\frac{f(k)}{f(k-1)} = \frac{\tau}{k}$$
+      so each additional step of thinking is *relatively* rarer than the last
+      (going from step 3 to step 4 loses more of the population than going from
+      step 1 to step 2). Camerer et al. motivate this as a working-memory
+      constraint on how many nested steps people can carry out. $k!$ itself has
+      no separate psychological meaning -- it's part of the Poisson form.
+    - $e^{-\tau}$ -- the normalizing constant (makes $\sum_k f(k) = 1$). Plugging
+      in $k=0$ gives $f(0) = e^{-\tau}$ directly -- the model's predicted share
+      of purely non-strategic (step-0) players.
+
+    At $\tau = 1.5$: $f(0..5) \approx .223,\ .335,\ .251,\ .126,\ .047,\ .014$.
 
     **What it means for cognitive hierarchy theory**
 
@@ -157,14 +162,16 @@ def eq3_poisson(mo):
     a higher average reasoning depth is also predicted to be more spread out in
     depth, not just uniformly shifted upward.
 
-    **Beauty contest:** fit to 24 *p*-beauty-contest datasets, the median
-    $\hat\tau$ is $1.61$. That's why the empirical average lands around 20-35
-    instead of converging all the way to the Nash prediction of 0.
+    **Beauty contest:** fitted values of $\tau$ are typically between 1 and 2,
+    and Camerer et al. suggest $\tau \approx 1.5$ as a reasonable default. With
+    most of the population at steps 0-2, the predicted average guess stays in
+    the 20-35 range instead of going to the Nash prediction of 0 (worked out
+    level by level under Equation 7).
 
-    **Stag hunt:** $\tau$ sets how much population mass sits at each level,
-    which feeds directly into the belief weights ($g_k(h)$, Equation 4) used to
-    predict how much of the group ends up playing Stag versus Hare, in both the
-    two-player and three-player versions of the game.
+    **Stag hunt:** $\tau$ sets the belief weights ($g_k(h)$, Equation 4), but
+    with argmax responses it does *not* change which action the strategic
+    players choose -- that is set by step 1 (see the stag hunt section). What
+    $\tau$ does control is the share of step-0 noise, $f(0) = e^{-\tau}$.
     """)
     return
 
@@ -176,10 +183,14 @@ def eq3_poisson_rl(mo):
 
     $$p(k) = \frac{e^{-\tau}\tau^k}{k!}$$
 
-    Prior over how many rounds of best-response iteration (think: search or
-    rollout depth) an agent in the population runs before committing to a
-    policy. $\tau$ is the population's average planning depth -- like a prior
-    on lookahead budget.
+    Distribution over how many rounds of *iterated best response* an agent in
+    the population carries out -- the depth of "I think that you think that I
+    think...". $\tau$ is the population's average depth of strategic recursion.
+
+    Careful: this is **not** a planning horizon or rollout depth. The game is
+    one-shot, so there is no lookahead through time at all. In a sequential
+    or repeated game, strategic depth ($k$) and temporal horizon ($H$) are
+    two separate parameters.
     """)
     return
 
@@ -226,9 +237,14 @@ def eq4_truncated_belief_rl(mo):
 
     $$b_k(h) = \frac{p(h)}{\sum_{l=0}^{k-1} p(l)}, \qquad h < k$$
 
-    Bayesian belief over the opponent's policy tier, renormalized after
-    truncating out tiers $\ge k$. This is the mixture weighting used to build
-    the opponent model in Equation 5's RL rewrite below.
+    A fixed prior over the opponent's policy tier: the population
+    distribution with tiers $\ge k$ cut off and the remainder renormalized.
+    Nothing is updated from data -- in a one-shot game there is no evidence to
+    update on. (A genuine Bayesian update of $b_k$ from the opponent's observed
+    actions is the natural extension for repeated play.) These weights build
+    the opponent-model mixture in Equation 5's RL rewrite below.
+
+    At $\tau = 1.5$: $b_1 = [1]$, $b_2 = [.40, .60]$, $b_3 = [.28, .41, .31]$.
     """)
     return
 
@@ -258,14 +274,26 @@ def eq5_expected_payoff(mo):
     across every opponent strategy, weighted by how likely each opponent type is
     to play it, weighted by how likely each opponent type is to exist."
 
-    **Beauty contest:** because the payoff there depends only on the *mean* of
-    the opponents' guesses, this whole double sum collapses to a single number
-    -- see the simplified point-value form in Equation 7.
+    **Beauty contest:** because the payoff depends only on how close your guess
+    is to $p \times$ the average, the only thing about the opponents' strategies
+    that matters is their believed *mean* guess -- see the point-value form in
+    Equation 7.
 
-    **Stag hunt:** no such shortcut exists -- payoffs depend on the full
-    probability an opponent puts on Stag versus Hare, not just an average, so
-    the full form of this equation is needed. That's precisely why the paper
-    introduces a genuine matrix-game version of CH for coordination games.
+    **Stag hunt (2 players):** there is an equally simple shortcut. The
+    opponent has only two actions, so the belief-weighted mixture in braces
+    reduces to one number,
+    $$q_k = \sum_{h=0}^{k-1} g_k(h)\, P_h(\text{Stag}),$$
+    the believed probability the opponent plays Stag. Writing the row player's
+    payoffs as $a = \pi(S,S)$, $b = \pi(S,H)$, $c = \pi(H,S)$, $d = \pi(H,H)$
+    (a stag hunt needs $a > c \ge d > b$):
+    $$E_k(S) = q_k a + (1-q_k) b, \qquad E_k(H) = q_k c + (1-q_k) d.$$
+    Both are linear in $q_k$, so Stag beats Hare exactly when $q_k$ exceeds a
+    threshold:
+    $$q_k > q^\ast = \frac{d-b}{(a-c)+(d-b)}.$$
+
+    **With more than two players**, the sum over $j'$ runs over *profiles* of
+    all opponents' strategies, and each opponent's level is treated as an
+    independent draw from $g_k$.
     """)
     return
 
@@ -282,6 +310,10 @@ def eq5_expected_payoff_rl(mo):
     expected return of action $a_i$ against that mixture -- the standard
     opponent-modeling Q-value used in multi-agent RL. ($R_i$ replaces econ's
     $\pi_i$ here to avoid clashing with RL's own use of $\pi$ for policy.)
+
+    Note that $Q_k$ here is just the expected *immediate* reward of a stateless,
+    one-shot game: there are no states, transitions, discounting, or
+    bootstrapping.
     """)
     return
 
@@ -305,15 +337,16 @@ def eq6_best_response(mo):
     This closes the loop of the whole model: bounded belief (Equations 2 and 4)
     feeds into an expected-payoff calculation (Equation 5), and the step-$k$
     player simply best-responds to it. Nothing here is boundedly rational in
-    itself -- the *only* bounded-rationality assumption in the entire model is
-    in what a player believes about others, not in how they optimize given that
-    belief.
+    itself: for every step $k \ge 1$, the bounded-rationality assumption lies in
+    what a player believes about others, not in how they optimize given that
+    belief. (The other departure from full rationality is step 0 itself, which
+    doesn't optimize at all.)
 
     **Beauty contest:** picks the single number minimizing distance to $p \times$
     the believed average guess.
 
-    **Stag hunt:** picks Stag or Hare (or splits evenly on a tie) by comparing
-    expected payoffs under the belief-weighted mix from Equation 5.
+    **Stag hunt:** picks Stag iff $q_k > q^\ast$, Hare iff $q_k < q^\ast$, and
+    splits evenly iff $q_k = q^\ast$ (Equation 5's threshold form).
     """)
     return
 
@@ -325,8 +358,20 @@ def eq6_best_response_rl(mo):
 
     $$\pi_k(a_i) = \mathbb{1}\left[a_i = \operatorname*{arg\,max}_{a_i'} Q_k(a_i')\right]$$
 
-    Greedy policy improvement with respect to $Q_k$ -- the standard "improve"
-    step of policy iteration, ties split uniformly.
+    A **best response**: act greedily with respect to $Q_k$ (ties split
+    uniformly). This is not the "improve" step of policy iteration. There,
+    $Q$ is the value of the agent's *own* current policy; here, $Q_k$ depends
+    only on the fixed opponent mixture.
+
+    The closest RL analogue for the *whole hierarchy* is iterated best response
+    to a growing population of earlier policies: $\pi_1$ best-responds to
+    $\pi_0$, $\pi_2$ best-responds to a mixture of $\{\pi_0, \pi_1\}$, and so on,
+    with Poisson mixture weights. This is structurally like fictitious play or
+    PSRO. Level-$k$ models instead best-respond only to the most recent policy.
+
+    A common relaxation replaces the argmax with a softmax,
+    $\pi_k(a_i) \propto \exp(\lambda Q_k(a_i))$, giving CH with logit
+    ("quantal") responses.
     """)
     return
 
@@ -342,10 +387,23 @@ def eq7_beauty_contest_applied(mo):
     payoff depends only on the mean of the guess distribution. It solves purely
     by substitution, bottom-up from $s_0$.
 
+    **Worked levels** ($p = 2/3$, $\tau = 1.5$; weights $g_k$ from Equation 4):
+
+    | $k$ | $g_k(0), g_k(1), \ldots$ | believed average | guess $s_k$ |
+    |---|---|---|---|
+    | 0 | -- | -- | 50 |
+    | 1 | 1 | 50 | 33.3 |
+    | 2 | .40, .60 | 40.0 | 26.7 |
+    | 3 | .28, .41, .31 | 35.9 | 23.9 |
+    | 4 | | | 22.8 |
+    | 5 | | | 22.5 |
+
+    The population average, $\sum_k f(k)\, s_k$, is about 33.6.
+
     **Dominance-solvability:** iterating this recursion converges to the Nash
-    prediction of $0$ as $\tau \to \infty$. At the empirically fitted
-    $\tau \approx 1.5$, it stops well short of that -- matching the "converges
-    to ~20-35, not 0" pattern seen in real one-shot experiments.
+    prediction of $0$ as $\tau \to \infty$. At $\tau \approx 1.5$ it stops well
+    short: individual guesses level off around 22, because even very
+    high-level players believe much of the population is at steps 0-2.
 
     A related result used to prove this: $f(k-1)/f(k-2) = \tau/(k-1)$. For
     $k \ll \tau$, this puts almost all belief-weight on the $k-1$ type directly
@@ -369,11 +427,12 @@ def eq7_beauty_contest_applied_rl(mo):
     mo.md(r"""
     ### RL rewrite of Equation 7
 
-    $$V_0 = 50, \qquad V_k = p\sum_{h=0}^{k-1} b_k(h)\, V_h$$
+    $$a_0 = 50, \qquad a_k = p\sum_{h=0}^{k-1} b_k(h)\, a_h$$
 
-    A finite-horizon, non-self-referential value backup: each tier's value
-    bootstraps off lower tiers' values only, weighted by belief -- like a
-    depth-limited expectimax backup with no recursion into your own value.
+    $s_k$ is an *action* (a guess), not a value, so the recursion is over
+    policies: each tier's deterministic action is the best response to the
+    belief-weighted mean action of the lower tiers. It is not a value backup --
+    no tier's expected reward appears anywhere in the recursion.
     """)
     return
 
@@ -381,30 +440,59 @@ def eq7_beauty_contest_applied_rl(mo):
 @app.cell(hide_code=True)
 def stag_hunt_applied(mo):
     mo.md(r"""
-    ## Stag hunt: applying Equations 3, 4, and 6 directly
+    ## Stag hunt: working through the levels (derived from Equations 3-6)
 
-    No new general equation is needed here -- the stag hunt is solved with the
-    same population distribution (Equation 3), the same belief rule
-    (Equation 4), and the same best-response rule (Equation 6) used everywhere
-    else in the model. Only the payoff structure changes.
+    No new equation is needed. The stag hunt uses the same population
+    distribution (Equation 3), belief rule (Equation 4), expected payoff
+    (Equation 5, in its threshold form) and best response (Equation 6). Only
+    the payoffs change. This is a worked example built from those equations,
+    not a result quoted from the paper.
 
-    **Payoffs:** choosing Hare guarantees payoff $x$ regardless of what anyone
-    else does. Choosing Stag pays $1$ if *everyone* chooses Stag, and $0$ if
-    even one other player chooses Hare.
+    **Payoffs (row player):** $a = \pi(S,S)$, $b = \pi(S,H)$, $c = \pi(H,S)$,
+    $d = \pi(H,H)$, with $a > c \ge d > b$: mutual Stag is best, but Hare is
+    safe. (If instead $c > a$ and $d > b$, Hare strictly dominates Stag and the
+    game is a Prisoner's Dilemma, not a stag hunt.) Step $k$ plays Stag iff
+    $q_k > q^\ast = (d-b)/\big((a-c)+(d-b)\big)$.
 
-    **Two-player game:** a step-1 thinker best-responds to a single step-0
-    (randomizing) opponent, and picks Stag iff $x < 1/2$, Hare iff $x > 1/2$.
+    **Worked levels** ($\tau = 1.5$), for two payoff matrices:
 
-    **Three-player game:** a step-1 thinker now faces two independent step-0
-    opponents, so the chance at least one of them picks Hare is $0.75$ rather
-    than $0.5$. That tougher bar for coordination means Stag is only chosen iff
-    $x \le 0.25$.
+    *Risky Stag* -- $(a,b,c,d) = (4,0,3,2)$, $q^\ast = 2/3$:
 
-    **Predicted group play:** the population-level probability of Hare works
-    out to $1 - f(0)/2$ -- about $89\%$ at $\tau = 1.5$ -- illustrating the
-    paper's point that larger groups get pulled toward the safe, inefficient
-    equilibrium purely because coordination gets statistically harder as the
-    number of people you have to simultaneously coordinate with grows.
+    | $k$ | $q_k$ | $E_k(S)$ | $E_k(H)$ | choice |
+    |---|---|---|---|---|
+    | 0 | -- | -- | -- | 50/50 |
+    | 1 | .50 | 2.00 | 2.50 | Hare |
+    | 2 | $.4(.5) + .6(0) = .20$ | 0.80 | 2.20 | Hare |
+    | 3 | .14 | 0.55 | 2.14 | Hare |
+
+    *Easy Stag* -- $(a,b,c,d) = (4,0,2,1)$, $q^\ast = 1/3$:
+
+    | $k$ | $q_k$ | $E_k(S)$ | $E_k(H)$ | choice |
+    |---|---|---|---|---|
+    | 0 | -- | -- | -- | 50/50 |
+    | 1 | .50 | 2.00 | 1.50 | Stag |
+    | 2 | $.4(.5) + .6(1) = .80$ | 3.20 | 1.80 | Stag |
+    | 3 | .86 | 3.45 | 1.86 | Stag |
+
+    **Every level $k \ge 1$ copies step 1.** If step 1 plays Stag, then every
+    lower level plays Stag with probability $\ge 1/2$, so $q_k \ge 1/2 > q^\ast$
+    and step $k$ plays Stag too. If step 1 plays Hare, then $q_k \le 1/2 < q^\ast$
+    and step $k$ plays Hare. So the whole prediction is set by one comparison,
+    $1/2$ versus $q^\ast$. The population then plays step 1's action with
+    probability $1 - f(0)/2 \approx .89$ at $\tau = 1.5$; the remaining
+    $f(0)/2$ is step-0 noise. $\tau$ changes how much noise there is, not which
+    action the population favours. (With softmax responses instead of argmax,
+    this collapse no longer happens exactly.)
+
+    **Group size.** Use the normalized payoffs Hare $= x$ for sure, and Stag $= 1$
+    only if *everyone* picks Stag (else 0). With 2 players, $q^\ast = x$, so step 1
+    plays Stag iff $x < 1/2$. With 3 players, step 1 faces two independent step-0
+    opponents who both pick Stag with probability $1/4$, so it plays Stag iff
+    $x < 1/4$ (and splits evenly at $x = 1/4$). The same argument as above shows
+    higher levels again copy step 1. Larger groups raise the bar for Stag,
+    because coordination requires more people to pick Stag at the same time.
+    The effect comes entirely through the **threshold on $x$**. The share
+    $1 - f(0)/2$ playing step 1's action is the same at every group size.
     """)
     return
 
