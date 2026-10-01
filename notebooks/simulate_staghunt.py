@@ -201,7 +201,7 @@ def _(mo):
                 10,
                 step=0.1,
                 value=1.0,
-                label="$\beta$ (inverse temperature)",
+                label=r"$\beta$ (inverse temperature)",
                 show_value=True,
             ),
             "gap": mo.ui.slider(
@@ -209,7 +209,7 @@ def _(mo):
                 3,
                 step=0.05,
                 value=-0.5,
-                label="gap $U(\text{stag}) - U(\text{hare})$",
+                label=r"gap $U(\text{stag}) - U(\text{hare})$",
                 show_value=True,
             ),
         }
