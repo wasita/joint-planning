@@ -1,10 +1,10 @@
-title: Joint Planning Notebooks
-description: Learning notes on cognitive hierarchy and RL models of coordination.
+title: Learning to jointly plan
+description: "A collection of notebooks to record my learning re: joint planning models."
 authors:
   - name: Wasita Mahaphanit
 
-url: https://wasita.space/joint-planning-lit/book/
-repo: https://github.com/wasita/joint-planning-lit
+url: https://wasita.space/joint-planning/book/
+repo: https://github.com/wasita/joint-planning
 branch: main
 
 launch_buttons:
@@ -18,7 +18,7 @@ dependencies:
 
 toc:
   - file: book/intro.md
-  - url: https://wasita.space/joint-planning-lit/
+  - url: https://wasita.space/joint-planning/
     title: Reading list
   - section: Cognitive hierarchy
     children:
