@@ -1020,7 +1020,7 @@ wheels = [
 ]
 
 [[package]]
-name = "joint-planning-lit"
+name = "joint-planning"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

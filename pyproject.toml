@@ -1,5 +1,5 @@
 [project]
-name = "joint-planning-lit"
+name = "joint-planning"
 version = "0.1.0"
 description = "Reading list vault, site generator, and helper notebooks for joint planning & multi-agent coordination"
 requires-python = ">=3.10"
