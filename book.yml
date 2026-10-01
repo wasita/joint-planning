@@ -23,5 +23,6 @@ toc:
   - section: Cognitive hierarchy
     children:
       - file: notebooks/rl_rewrites_of_ch_eqtns.py
+        title: "CH->RL Eqtns"
       - file: notebooks/simulate_staghunt.py
         mode: wasm  # sliders need live Python, so this page runs in the browser (Pyodide)
