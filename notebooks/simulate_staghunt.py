@@ -27,11 +27,12 @@ def _():
     import numpy as np
     import polars as pl
     from scipy.stats import poisson
+    from scipy.special import logsumexp
     import matplotlib.pyplot as plt
     import seaborn as sns
 
     sns.set_theme(style="ticks", font_scale=0.9)
-    return mo, np, pl, plt, poisson, sns
+    return logsumexp, mo, np, pl, plt, poisson, sns
 
 
 @app.cell(hide_code=True)
@@ -419,6 +420,172 @@ def _(R, ch_controls, ch_levels, level_weights, pl):
     ).with_columns(pl.col(pl.Float64).round(3))
     ladder
     return (ladder,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Step 4: simulating data and scoring it under the model
+
+    **Generative story.** Each participant $i$ has a latent level $k_i \sim \text{Poisson}(\tau)$ (truncated at $K$), and makes $T$ independent choices from level $k_i$'s softmax policy $\pi_{k_i}(\text{stag})$. Softmax is required here: under argmax, any choice a level wouldn't make has probability 0 and $\log L = -\infty$.
+
+    **Log likelihood.** We don't observe $k_i$, so we marginalize over it. With $s_i$ = number of stag choices out of $T$:
+
+    $$\log L(\tau, \beta) = \sum_i \log \sum_{k=0}^{K} f_\tau(k)\; \pi_k^{\,s_i} (1 - \pi_k)^{\,T - s_i}$$
+
+    **One-shot vs repeated.** With $T = 1$ the inner sum collapses to the population-wide $P(\text{stag}) = \sum_k f_\tau(k)\,\pi_k$: the data pin down *one number*, so any $(\tau, \beta)$ pair that produces the same overall stag rate fits equally well, no matter how many people we collect. With $T > 1$ each person's choices cluster around their own level's policy, which separates the mixture weights ($\tau$) from the policies ($\beta$).
+
+    The middle panel below is the control: one-shot with $N \times T$ people, i.e., the **same number of choices** as the repeated design, so differences from the right panel come from the repeated structure, not from more data.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    sim_controls = mo.ui.dictionary(
+        {
+            "tau": mo.ui.slider(
+                0.1, 5, step=0.1, value=1.5, label=r"true $\tau$", show_value=True
+            ),
+            "beta": mo.ui.slider(
+                0, 10, step=0.1, value=2.0, label=r"true $\beta$", show_value=True
+            ),
+            "N": mo.ui.slider(
+                10, 500, step=10, value=100, label=r"$N$ participants", show_value=True
+            ),
+            "T": mo.ui.slider(
+                2, 50, step=1, value=20, label=r"$T$ rounds (repeated design)", show_value=True
+            ),
+            "seed": mo.ui.number(value=0, label="seed"),
+        }
+    )
+    mo.vstack([sim_controls, mo.md("_Uses max level $K$ from the Step 3 controls._")])
+    return (sim_controls,)
+
+
+@app.cell
+def _(ch_levels, level_weights, logsumexp, np):
+    def level_policies(
+        R: np.ndarray, tau: float, beta: float, K: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Population weights f_tau(k) over levels 0..K, and each level's P(stag)."""
+        w = level_weights("poisson", tau, K)
+        w = w / w.sum()  # truncate at K, renormalize
+        p_stag = np.array(ch_levels(R, K, w, beta)["p_stag"])
+        return w, p_stag
+
+    def simulate_choices(
+        R: np.ndarray, tau: float, beta: float, K: int, N: int, T: int,
+        rng: np.random.Generator,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Returns (levels, choices): levels is (N,), choices is (N, T) with 1 = stag."""
+        w, p_stag = level_policies(R, tau, beta, K)
+        levels = rng.choice(K + 1, size=N, p=w)
+        choices = (rng.random((N, T)) < p_stag[levels, None]).astype(int)
+        return levels, choices
+
+    def log_lik(
+        choices: np.ndarray, R: np.ndarray, tau: float, beta: float, K: int
+    ) -> float:
+        """Marginal log likelihood, summing over each participant's unknown level."""
+        w, p_stag = level_policies(R, tau, beta, K)
+        p = np.clip(p_stag, 1e-12, 1 - 1e-12)  # large beta can push p to exactly 0 or 1
+        s = choices.sum(axis=1)  # stag count is a sufficient statistic per participant
+        T = choices.shape[1]
+        # (N, K+1): log P(participant i's choices | level k)
+        log_p_given_k = s[:, None] * np.log(p) + (T - s)[:, None] * np.log(1 - p)
+        return float(logsumexp(log_p_given_k + np.log(w), axis=1).sum())
+
+    return log_lik, simulate_choices
+
+
+@app.cell
+def _(R, ch_controls, mo, np, pl, sim_controls, simulate_choices):
+    _s = sim_controls.value
+    sim_K = ch_controls.value["K"]
+    _args = dict(R=R, tau=_s["tau"], beta=_s["beta"], K=sim_K)
+
+    # repeated design; its first round doubles as the one-shot design with the same people
+    sim_levels, choices_repeated = simulate_choices(
+        **_args, N=_s["N"], T=_s["T"], rng=np.random.default_rng(_s["seed"])
+    )
+    choices_oneshot = choices_repeated[:, :1]
+    # one-shot with N*T people: same number of choices as the repeated design
+    _, choices_oneshot_big = simulate_choices(
+        **_args, N=_s["N"] * _s["T"], T=1, rng=np.random.default_rng(_s["seed"] + 1)
+    )
+
+    _by_level = (
+        pl.DataFrame({"level": sim_levels, "p_stag_obs": choices_repeated.mean(axis=1)})
+        .group_by("level")
+        .agg(pl.len().alias("n_participants"), pl.col("p_stag_obs").mean().round(3))
+        .sort("level")
+    )
+    mo.vstack([mo.md("**Simulated repeated-design data, by true level**"), _by_level])
+    return choices_oneshot, choices_oneshot_big, choices_repeated, sim_K
+
+
+@app.cell
+def _(
+    R,
+    choices_oneshot,
+    choices_oneshot_big,
+    choices_repeated,
+    log_lik,
+    np,
+    sim_K,
+):
+    # log likelihood over a (tau, beta) grid for each design
+    tau_grid = np.linspace(0.1, 5, 50)
+    beta_grid = np.linspace(0, 10, 51)
+    designs = {
+        f"one-shot, N = {choices_oneshot.shape[0]}": choices_oneshot,
+        f"one-shot, N = {choices_oneshot_big.shape[0]}": choices_oneshot_big,
+        f"repeated, N = {choices_repeated.shape[0]} × T = {choices_repeated.shape[1]}": choices_repeated,
+    }
+    ll_surfaces = {
+        name: np.array(
+            [[log_lik(ch, R, t, b, sim_K) for t in tau_grid] for b in beta_grid]
+        )  # (n_beta, n_tau)
+        for name, ch in designs.items()
+    }
+    return beta_grid, ll_surfaces, tau_grid
+
+
+@app.cell(hide_code=True)
+def _(beta_grid, ll_surfaces, np, plt, sim_controls, tau_grid):
+    def plot_ll_surfaces(
+        surfaces: dict[str, np.ndarray], tau_grid: np.ndarray, beta_grid: np.ndarray,
+        true_tau: float, true_beta: float, floor: float = -20,
+    ):
+        INK, MUTED = "#333333", "#8a8a85"
+        fig, axes = plt.subplots(1, len(surfaces), figsize=(11, 3.8), sharey=True)
+        for ax, (name, ll) in zip(axes, surfaces.items()):
+            d_ll = np.maximum(ll - ll.max(), floor)  # ΔLL from this design's best grid point
+            mesh = ax.pcolormesh(
+                tau_grid, beta_grid, d_ll, cmap="Blues", vmin=floor, vmax=0, shading="auto"
+            )
+            # ΔLL = -3 ≈ 95% joint confidence region for 2 params (χ²₂ / 2)
+            ax.contour(tau_grid, beta_grid, d_ll, levels=[-3], colors=INK, linewidths=1.5, linestyles="solid")
+            i_b, i_t = np.unravel_index(ll.argmax(), ll.shape)
+            ax.plot(true_tau, true_beta, "*", ms=14, color="white", mec=INK, mew=1.2,
+                    label="true")
+            ax.plot(tau_grid[i_t], beta_grid[i_b], "X", ms=9, color=INK, mec="white",
+                    mew=1, label="grid max")
+            ax.set_title(name, fontsize=10, loc="left")
+            ax.set_xlabel(r"$\tau$")
+        axes[0].set_ylabel(r"$\beta$")
+        axes[0].legend(frameon=False, loc="upper right", fontsize=8, labelcolor=MUTED)
+        cbar = fig.colorbar(mesh, ax=axes, fraction=0.02, pad=0.02)
+        cbar.set_label("ΔLL from max (black contour = −3)")
+        plt.close(fig)
+        return fig
+
+    plot_ll_surfaces(
+        ll_surfaces, tau_grid, beta_grid,
+        sim_controls.value["tau"], sim_controls.value["beta"],
+    )
+    return
 
 
 if __name__ == "__main__":
