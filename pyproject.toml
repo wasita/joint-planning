@@ -5,10 +5,12 @@ description = "Reading list vault, site generator, and helper notebooks for join
 requires-python = ">=3.10"
 dependencies = [
     "anthropic>=1.4.0",
+    "black>=26.5.1",
     "marimo>=0.24.0",
     "matplotlib>=3.10.9",
     "numpy>=2.2.6",
     "pandas>=2.3.3",
+    "polars>=1.44.2",
     "pydantic-ai-slim>=2.41.0",
     "pyem",
     "ruff>=0.16.8",
