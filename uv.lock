@@ -1068,7 +1068,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "marimo-book", marker = "python_full_version >= '3.11'", specifier = ">=0.1.47,<0.2" }]
+dev = [{ name = "marimo-book", marker = "python_full_version >= '3.11'", git = "https://github.com/wasita/marimo-book?rev=594d48af133ced69ff4578a0be47bff298307659" }]
 
 [[package]]
 name = "jsonschema"
@@ -1570,8 +1570,8 @@ wheels = [
 
 [[package]]
 name = "marimo-book"
-version = "0.1.47"
-source = { registry = "https://pypi.org/simple" }
+version = "0.1.47.post1.dev1+g594d48af1"
+source = { git = "https://github.com/wasita/marimo-book?rev=594d48af133ced69ff4578a0be47bff298307659#594d48af133ced69ff4578a0be47bff298307659" }
 dependencies = [
     { name = "beautifulsoup4", marker = "python_full_version >= '3.11'" },
     { name = "lxml", marker = "python_full_version >= '3.11'" },
@@ -1590,10 +1590,6 @@ dependencies = [
     { name = "tomlkit", marker = "python_full_version >= '3.11'" },
     { name = "typer", marker = "python_full_version >= '3.11'" },
     { name = "watchdog", marker = "python_full_version >= '3.11'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/8b/bc3e8c398efefe8462fb0603d828d39828e09ec5bdba4ddabc93efc6f229/marimo_book-0.1.47.tar.gz", hash = "sha256:259cdf83be508a7282d21e1d49ee9b6f36a4c51460bc31b1578f1aa7bfd2e97c", size = 451343, upload-time = "2026-09-23T13:05:00.026Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/c9/0732363e11f6e7b929e034e8d3023a03d197fdddea7af6520564003bcf55/marimo_book-0.1.47-py3-none-any.whl", hash = "sha256:db8c1fcf5275aee0712a4e9a9462ca04d14d3a71334767e24dbf25b694c6fa0d", size = 223338, upload-time = "2026-09-23T13:04:58.578Z" },
 ]
 
 [[package]]
