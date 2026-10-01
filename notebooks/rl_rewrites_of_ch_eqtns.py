@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.24.2"
 app = marimo.App()
 
 
@@ -385,11 +385,6 @@ def _(mo):
 
     - Since $\beta$ multiplies the value gap between the utilities of the two actions, scaling or changing the magnitudes of the utilities does not change the behavior. What matters is the relative difference between the higher-reward and lower-rewardoption
     """)
-    return
-
-
-@app.cell
-def _():
     return
 
 
