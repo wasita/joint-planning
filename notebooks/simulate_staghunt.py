@@ -104,8 +104,8 @@ def _(mo):
     $q =$ the believed probability the opponent plays stag. Each action's
     Q-value is then a straight line in $q$, and the lines cross at $q^\ast$, which is the indifference point.
 
-    - triangles mark where each CH level's belief $q_k$ lands (e.g., currently
-    $\tau = 1.5$; placeholder values until we compute them).
+    - triangles mark where each CH level's belief $q_k$ lands, taken from the
+    ladder in Step 3 (so they follow the belief model, $\tau$, $K$, and $\beta$ controls there).
     """)
     return
 
@@ -141,10 +141,14 @@ def _(np, plt):
         for Qv, col in zip(Q_now, [STAG, HARE]):
             ax.plot(q, Qv, "o", ms=8, color=col, mec="white", mew=2, zorder=3)
 
-        # where each CH level's belief lands
+        # where each CH level's belief lands; levels with the same belief
+        # (common under argmax) share one triangle so labels don't overlap
+        shared: dict[float, list[int]] = {}
         for k, qk in level_qs.items():
+            shared.setdefault(round(qk, 3), []).append(k)
+        for qk, ks in shared.items():
             ax.plot(qk, -0.15, "^", ms=8, color=INK, clip_on=False)
-            ax.text(qk, -0.45, f"k={k}", ha="center", fontsize=8, color=INK)
+            ax.text(qk, -0.45, "k=" + ",".join(map(str, ks)), ha="center", fontsize=8, color=INK)
 
         ax.set_xlim(0, 1)
         ax.set_ylim(min(R.min(), 0) - 0.6, R.max() + 0.2)
@@ -164,16 +168,14 @@ def _(np, plt):
 
 
 @app.cell(hide_code=True)
-def _(R, plot_q_lines, q_slider, q_star):
+def _(R, ladder, pl, plot_q_lines, q_slider, q_star):
+    # level 0 has no belief (it's uniform by fiat), so skip its null q
+    _qs = ladder.filter(pl.col("q").is_not_null())
     plot_q_lines(
         R,
         q_slider.value,
         q_star,
-        level_qs={
-            1: 0.50, 
-            2: 0.20,
-            3: 0.14
-        }
+        level_qs=dict(zip(_qs["k"], _qs["q"])),
     )
     return
 
@@ -411,7 +413,7 @@ def _(R, ch_controls, ch_levels, level_weights, pl):
         )
     ).with_columns(pl.col(pl.Float64).round(3))
     ladder
-    return
+    return (ladder,)
 
 
 if __name__ == "__main__":
