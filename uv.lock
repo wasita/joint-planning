@@ -1068,7 +1068,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "marimo-book", marker = "python_full_version >= '3.11'", git = "https://github.com/wasita/marimo-book?rev=594d48af133ced69ff4578a0be47bff298307659" }]
+dev = [{ name = "marimo-book", marker = "python_full_version >= '3.11'", git = "https://github.com/wasita/marimo-book?rev=8d9749c4c00c7fcf90e7fcbada1dc46215e1fc97" }]
 
 [[package]]
 name = "jsonschema"
@@ -1570,8 +1570,8 @@ wheels = [
 
 [[package]]
 name = "marimo-book"
-version = "0.1.47.post1.dev1+g594d48af1"
-source = { git = "https://github.com/wasita/marimo-book?rev=594d48af133ced69ff4578a0be47bff298307659#594d48af133ced69ff4578a0be47bff298307659" }
+version = "0.1.47.post1.dev2+g8d9749c4c"
+source = { git = "https://github.com/wasita/marimo-book?rev=8d9749c4c00c7fcf90e7fcbada1dc46215e1fc97#8d9749c4c00c7fcf90e7fcbada1dc46215e1fc97" }
 dependencies = [
     { name = "beautifulsoup4", marker = "python_full_version >= '3.11'" },
     { name = "lxml", marker = "python_full_version >= '3.11'" },
