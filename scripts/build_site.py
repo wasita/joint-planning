@@ -393,6 +393,8 @@ def build(papers, style, meta=None):
              'multi-agent AI meet on the problem of two or more agents forming and acting on a '
              'shared plan. Every entry carries a tier, a note on why it earns its place, and — '
              'where relevant — a flag for a common citation trap.</p>')
+    o.append('<p class="dek">Companion notebooks: <a href="book/">cognitive hierarchy '
+             'equations and an interactive stag hunt simulation</a>.</p>')
     o.append('</header>')
 
     o.append('<div class="taped"><span class="label">how to read the tiers</span>')
