@@ -25,3 +25,9 @@ scripts/extract_papers.py
 # ── marimo per-machine session/layout state (not notebook content) ──
 notebooks/__marimo__/
 notebooks/layouts/
+
+# ── marimo-book build artifacts (site is built in CI) ──
+_site/
+_site_src/
+.marimo_book_cache/
+_deploy/

@@ -1,0 +1,62 @@
+name: Deploy site to Pages
+
+# Reading list (index.html) at the site root, marimo-book notebooks under /book/.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Cache marimo-book renders
+        uses: actions/cache@v4
+        with:
+          path: .marimo_book_cache
+          key: marimo-book-${{ hashFiles('book.yml', 'notebooks/*.py', 'uv.lock') }}
+          restore-keys: marimo-book-
+
+      - name: Build notebooks book
+        run: uv run marimo-book build --strict
+
+      - name: Assemble site
+        run: |
+          mkdir -p _deploy/book
+          cp index.html _deploy/index.html
+          cp -R _site/. _deploy/book/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _deploy
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

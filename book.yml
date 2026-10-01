@@ -1,0 +1,27 @@
+title: Joint Planning Notebooks
+description: Learning notes on cognitive hierarchy and RL models of coordination.
+authors:
+  - name: Wasita Mahaphanit
+
+url: https://wasita.space/joint-planning-lit/book/
+repo: https://github.com/wasita/joint-planning-lit
+branch: main
+
+launch_buttons:
+  molab: true
+  github: true
+  download: true
+
+# Notebooks build in this repo's uv environment (pyproject.toml).
+dependencies:
+  mode: env
+
+toc:
+  - file: book/intro.md
+  - url: https://wasita.space/joint-planning-lit/
+    title: Reading list
+  - section: Cognitive hierarchy
+    children:
+      - file: notebooks/rl_rewrites_of_ch_eqtns.py
+      - file: notebooks/simulate_staghunt.py
+        mode: wasm  # sliders need live Python, so this page runs in the browser (Pyodide)
