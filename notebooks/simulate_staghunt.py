@@ -9,9 +9,14 @@ def _(mo):
     mo.md(r"""
     # 2-player stag hunt game simulations
 
-    - GOAL: to simulate choice probabilities of actions (choose stag or choose hare) for each player within the dyad
+    - **GOAL**: simulate choice probabilities of actions (choose stag or choose hare) for each player within the dyad
        - start with 0-level thinkers and work our way up as k-reasoning levels increase.
-       - bonus could be to expand to the case where there's more than 2 people playing.
+
+    - **NEXT**:
+        - [ ] Simulate a dataset: each player gets a latent level $k$ drawn from Poisson ($\tau$) and choose hare/stag depending on their level's policy
+        - [ ] Evaluate CH model: score data under the model (compute log likelihoods)
+        - [ ] Fit model: find best params that explain the data -- see if we can recover the same parameters that were used to simulate the data. Approaches: MLE, MAP, EM
+        - [ ] bonus could be to expand to the case where there are more than 2 people playing
     """)
     return
 
