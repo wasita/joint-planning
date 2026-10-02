@@ -13,8 +13,8 @@ def _(mo):
        - start with 0-level thinkers and work our way up as k-reasoning levels increase.
 
     - **NEXT**:
-        - [ ] Simulate a dataset: each player gets a latent level $k$ drawn from Poisson ($\tau$) and choose hare/stag depending on their level's policy
-        - [ ] Evaluate CH model: score data under the model (compute log likelihoods)
+        - [x] Simulate a dataset: each player gets a latent level $k$ drawn from Poisson ($\tau$) and choose hare/stag depending on their level's policy
+        - [x] Evaluate CH model: score data under the model (compute log likelihoods)
         - [ ] Fit model: find best params that explain the data -- see if we can recover the same parameters that were used to simulate the data. Approaches: MLE, MAP, EM
         - [ ] bonus could be to expand to the case where there are more than 2 people playing
     """)
@@ -67,7 +67,7 @@ def _(mo):
     return (payoff_sliders,)
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo, np, payoff_sliders):
     ACTIONS = ["C", "D"]  # index 0 = C (stag), 1 = D (hare)
 
@@ -87,7 +87,12 @@ def _(mo, np, payoff_sliders):
     _denom = (_a - _c) + (_d - _b)
     q_star = (_d - _b) / _denom if _denom != 0 else float("nan")
 
+    # ensure that the CC is highest reward
+    # followed by when I defect, partner cooperates
+    # then both defect and get small reward
+    # last: I cooperate and partner defects (I get nothing)
     _is_stag_hunt = _a > _c >= _d > _b
+
     mo.vstack([
         mo.md(f"$R =$ `{R.tolist()}`, $\\quad q^\\ast = {q_star:.2f}$"),
         mo.callout(
@@ -111,7 +116,7 @@ def _(mo):
     Q-value is then a straight line in $q$, and the lines cross at $q^\ast$, which is the indifference point.
 
     - triangles mark where each CH level's belief $q_k$ lands, taken from the
-    ladder in Step 3 (so they follow the belief model, $\tau$, $K$, and $\beta$ controls there).
+    ladder in *Climbing the hierarchy* below (so they follow the belief model, $\tau$, $K$, and $\beta$ controls there).
     """)
     return
 
@@ -194,7 +199,7 @@ def _(mo):
     $$\pi(\text{stag}) = \frac{e^{\beta U(\text{stag})}}{e^{\beta U(\text{stag})} + e^{\beta U(\text{hare})}} = \frac{1}{1 + e^{-\beta\,(U(\text{stag}) - U(\text{hare}))}}$$
 
     - with two actions, only the **gap** between the two values matters, scaled by $\beta$ (only relative value diff matters, not magnitudes)
-    - $\beta = 0$ ignores the values (uniform, like step 0)
+    - $\beta = 0$ ignores the values (uniform, like level 0)
     - $\beta \to \infty$ is argmax (original CH). faint curves are reference $\beta$ values
     """)
     return
@@ -300,7 +305,7 @@ def _(plot_softmax_stag, softmax_sliders):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Step 3: climbing the hierarchy
+    ## Climbing the hierarchy
 
     Each level $k$ is built from the levels below it, bottom-up:
 
@@ -425,7 +430,7 @@ def _(R, ch_controls, ch_levels, level_weights, pl):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Step 4: simulating data and scoring it under the model
+    ## Simulating data and scoring it under the model
 
     **Generative story.** Each participant $i$ has a latent level $k_i \sim \text{Poisson}(\tau)$ (truncated at $K$), and makes $T$ independent choices from level $k_i$'s softmax policy $\pi_{k_i}(\text{stag})$. Softmax is required here: under argmax, any choice a level wouldn't make has probability 0 and $\log L = -\infty$.
 
@@ -459,7 +464,7 @@ def _(mo):
             "seed": mo.ui.number(value=0, label="seed"),
         }
     )
-    mo.vstack([sim_controls, mo.md("_Uses max level $K$ from the Step 3 controls._")])
+    mo.vstack([sim_controls, mo.md("_Uses max level $K$ from the hierarchy controls above._")])
     return (sim_controls,)
 
 
