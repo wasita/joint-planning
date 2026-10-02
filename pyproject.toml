@@ -24,7 +24,7 @@ package = false
 
 [tool.uv.sources]
 pyem = { git = "https://github.com/shawnrhoads/pyEM.git" }
-marimo-book = { git = "https://github.com/wasita/marimo-book", rev = "8d9749c4c00c7fcf90e7fcbada1dc46215e1fc97" }
+marimo-book = { git = "https://github.com/wasita/marimo-book", rev = "323956634398846951b640c31c2d358ef8d11988" }
 
 [dependency-groups]
 dev = [
