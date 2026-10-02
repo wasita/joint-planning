@@ -27,12 +27,12 @@ def _():
     import numpy as np
     import polars as pl
     from scipy.stats import poisson
-    from scipy.special import logsumexp
+    from scipy.special import expit, logsumexp
     import matplotlib.pyplot as plt
     import seaborn as sns
 
     sns.set_theme(style="ticks", font_scale=0.9)
-    return logsumexp, mo, np, pl, plt, poisson, sns
+    return expit, logsumexp, mo, np, pl, plt, poisson, sns
 
 
 @app.cell(hide_code=True)
@@ -469,14 +469,26 @@ def _(mo):
 
 
 @app.cell
-def _(ch_levels, level_weights, logsumexp, np):
+def _(expit, level_weights, logsumexp, np):
     def level_policies(
-        R: np.ndarray, tau: float, beta: float, K: int
+        R: np.ndarray, tau: float, beta: float | np.ndarray, K: int
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Population weights f_tau(k) over levels 0..K, and each level's P(stag)."""
+        """Population weights f_tau(k) over levels 0..K, and each level's P(stag).
+
+        Same recursion as ch_levels' softmax branch, specialized to 2 actions and
+        vectorized over beta: an array of betas gives p_stag of shape (*beta.shape, K+1),
+        so a whole beta grid is one pass up the hierarchy instead of one per beta.
+        """
         w = level_weights("poisson", tau, K)
         w = w / w.sum()  # truncate at K, renormalize
-        p_stag = np.array(ch_levels(R, K, w, beta)["p_stag"])
+        beta = np.asarray(beta, dtype=float)
+        stag_minus_hare = R[0] - R[1]  # payoff advantage of stag vs opp stag, opp hare
+        p_stag = np.empty(beta.shape + (K + 1,))
+        p_stag[..., 0] = 0.5  # level 0 is uniform
+        for k in range(1, K + 1):
+            q = p_stag[..., :k] @ (w[:k] / w[:k].sum())  # believed P(opp stag)
+            gap = stag_minus_hare[0] * q + stag_minus_hare[1] * (1 - q)  # U(stag) - U(hare)
+            p_stag[..., k] = expit(beta * gap)  # 2-action softmax = sigmoid of the gap
         return w, p_stag
 
     def simulate_choices(
@@ -489,19 +501,32 @@ def _(ch_levels, level_weights, logsumexp, np):
         choices = (rng.random((N, T)) < p_stag[levels, None]).astype(int)
         return levels, choices
 
+    def log_lik_given_policies(
+        choices: np.ndarray, w: np.ndarray, p_stag: np.ndarray
+    ) -> np.ndarray:
+        """Marginal log likelihood, summing over each participant's unknown level.
+
+        p_stag can carry leading batch dims (e.g. a beta grid); the result has those dims.
+        """
+        p = np.clip(p_stag, 1e-12, 1 - 1e-12)  # large beta can push p to exactly 0 or 1
+        T = choices.shape[1]
+        # stag count is a sufficient statistic per participant, so participants with the
+        # same count contribute identically: score each count 0..T once, weight by how many
+        n_with_s = np.bincount(choices.sum(axis=1), minlength=T + 1)
+        s = np.arange(T + 1).reshape((-1,) + (1,) * p.ndim)  # broadcast against p
+        # (T+1, ..., K+1): log P(T choices with s stags | level k)
+        log_p_given_k = s * np.log(p) + (T - s) * np.log(1 - p)
+        log_p_s = logsumexp(log_p_given_k + np.log(w), axis=-1)  # (T+1, ...)
+        return np.tensordot(n_with_s, log_p_s, axes=1)
+
     def log_lik(
         choices: np.ndarray, R: np.ndarray, tau: float, beta: float, K: int
     ) -> float:
-        """Marginal log likelihood, summing over each participant's unknown level."""
+        """Convenience wrapper: log likelihood of the data at a single (tau, beta)."""
         w, p_stag = level_policies(R, tau, beta, K)
-        p = np.clip(p_stag, 1e-12, 1 - 1e-12)  # large beta can push p to exactly 0 or 1
-        s = choices.sum(axis=1)  # stag count is a sufficient statistic per participant
-        T = choices.shape[1]
-        # (N, K+1): log P(participant i's choices | level k)
-        log_p_given_k = s[:, None] * np.log(p) + (T - s)[:, None] * np.log(1 - p)
-        return float(logsumexp(log_p_given_k + np.log(w), axis=1).sum())
+        return float(log_lik_given_policies(choices, w, p_stag))
 
-    return log_lik, simulate_choices
+    return level_policies, log_lik, log_lik_given_policies, simulate_choices
 
 
 @app.cell
@@ -536,7 +561,8 @@ def _(
     choices_oneshot,
     choices_oneshot_big,
     choices_repeated,
-    log_lik,
+    level_policies,
+    log_lik_given_policies,
     np,
     sim_K,
 ):
@@ -548,12 +574,12 @@ def _(
         f"one-shot, N = {choices_oneshot_big.shape[0]}": choices_oneshot_big,
         f"repeated, N = {choices_repeated.shape[0]} × T = {choices_repeated.shape[1]}": choices_repeated,
     }
-    ll_surfaces = {
-        name: np.array(
-            [[log_lik(ch, R, t, b, sim_K) for t in tau_grid] for b in beta_grid]
-        )  # (n_beta, n_tau)
-        for name, ch in designs.items()
-    }
+    ll_surfaces = {name: np.empty((len(beta_grid), len(tau_grid))) for name in designs}
+    for i_t, t in enumerate(tau_grid):
+        # one pass up the hierarchy covers the whole beta grid, shared by all designs
+        _w, _p = level_policies(R, t, beta_grid, sim_K)
+        for name, ch in designs.items():
+            ll_surfaces[name][:, i_t] = log_lik_given_policies(ch, _w, _p)
     return beta_grid, ll_surfaces, tau_grid
 
 
