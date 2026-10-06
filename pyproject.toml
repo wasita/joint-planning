@@ -1,7 +1,7 @@
 [project]
 name = "joint-planning"
 version = "0.1.0"
-description = "Reading list vault, site generator, and helper notebooks for joint planning & multi-agent coordination"
+description = "Marimo notebook book and annotated reading list on joint planning & multi-agent coordination"
 requires-python = ">=3.10"
 dependencies = [
     "anthropic>=1.4.0",
