@@ -46,11 +46,6 @@ def _(mo):
     |--------------|--------------|--------------|
     | **C (stag)** | $a$          | $b$          |
     | **D (hare)** | $c$          | $d$          |
-
-    a stag hunt requires $a > c \ge d > b$, where mutual stag is the best outcome, but hare is the safe choice (small reward, independent of partner's choice)
-
-    if instead $c > a$, hare strictly dominates stag and the game becomes a
-    prisoner's dilemma
     """)
     return
 
@@ -67,7 +62,18 @@ def _(mo):
     return (payoff_sliders,)
 
 
-@app.cell
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    a stag hunt requires $a > c \ge d > b$, where mutual stag (C,C) is the best outcome, but hare is the safe choice (small reward, independent of partner's choice)
+
+    if instead $c > a$, hare strictly dominates stag and the game becomes a
+    prisoner's dilemma
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo, np, payoff_sliders):
     ACTIONS = ["C", "D"]  # index 0 = C (stag), 1 = D (hare)
 
@@ -80,11 +86,14 @@ def _(mo, np, payoff_sliders):
     }
 
     # R[my_action, opp_action] = my payoff
+    # where action is: C = 0, D = 1
     R = np.array([[payoffs[(me, opp)] for opp in ACTIONS] for me in ACTIONS])
 
     # threshold belief: stag beats hare iff P(opp stag) > q_star
     (_a, _b), (_c, _d) = R
     _denom = (_a - _c) + (_d - _b)
+
+    # indifference point: the belief P(partner plays stag) at which my stag and my hare have equal expected payoff
     q_star = (_d - _b) / _denom if _denom != 0 else float("nan")
 
     # ensure that the CC is highest reward
@@ -107,16 +116,44 @@ def _(mo, np, payoff_sliders):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Q-values as a function of belief
+    ### Solving for q* (the indifference point)
+
+    - indifference point = the point where the expected payoff is equal for either action
+
+    we first set the $Q$-values to each other:
+
+    $$Q(\text{stag}) = Q(\text{hare})$$
+
+    where each side expands to:
+
+    $$Q(\text{stag}) = a \cdot q + b \cdot (1-q)$$
+    $$Q(\text{hare}) = c \cdot q + d \cdot (1-q)$$
+
+    so setting them equal gives:
+
+    $$a \cdot q + b \cdot (1-q) = c \cdot q + d \cdot (1-q)$$
+
+    then we plug in the default reward values from the payoff matrix, to get $q* = 2/3$.
+    that is, when our belief of our opponent choosing stag is $2/3 = .667$, we expected the same payoff for either action we take.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Q-values as a function of an agent's belief in their partner cooperating
 
     $$Q(a_i) = \sum_{a_j} R(a_i, a_j)\,\bar\pi_j(a_j)$$
 
     - with two actions, the opponent model $\bar\pi_j$ reduces to one number,
     $q =$ the believed probability the opponent plays stag. Each action's
-    Q-value is then a straight line in $q$, and the lines cross at $q^\ast$, which is the indifference point.
+    Q-value is then a straight line in $q$, and the lines cross at $q^\ast$, which is the indifference point (see previous section).
+
+    - we treat $q^\ast$ as a threshold: it is optimal (according to expected payoffs) to play hare when $q < q^\ast$ and stag when $q > q^\ast$
 
     - triangles mark where each CH level's belief $q_k$ lands, taken from the
-    ladder in *Climbing the hierarchy* below (so they follow the belief model, $\tau$, $K$, and $\beta$ controls there).
+    ladder in *Climbing the hierarchy* below (so they follow the belief model, parameterized by $\tau$, $K$, and $\beta$).
     """)
     return
 
@@ -194,7 +231,7 @@ def _(R, ladder, pl, plot_q_lines, q_slider, q_star):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Softmax: how $\beta$ turns a value gap into a choice probability
+    ## Softmax: turning a value gap into a choice probability
 
     $$\pi(\text{stag}) = \frac{e^{\beta U(\text{stag})}}{e^{\beta U(\text{stag})} + e^{\beta U(\text{hare})}} = \frac{1}{1 + e^{-\beta\,(U(\text{stag}) - U(\text{hare}))}}$$
 
@@ -231,7 +268,7 @@ def _(mo):
     return (softmax_sliders,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(np, plt, sns):
     def plot_softmax_stag(
         beta: float, gap: float, ref_betas: tuple[float, ...] = (0.5, 1, 2, 5)
@@ -526,7 +563,7 @@ def _(expit, level_weights, logsumexp, np):
         w, p_stag = level_policies(R, tau, beta, K)
         return float(log_lik_given_policies(choices, w, p_stag))
 
-    return level_policies, log_lik, log_lik_given_policies, simulate_choices
+    return level_policies, log_lik_given_policies, simulate_choices
 
 
 @app.cell
