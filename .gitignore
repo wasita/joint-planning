@@ -3,9 +3,7 @@
 # speculation about funding). Kept locally, never committed.
 reading-guide.html
 PLAN.md
-
-# Anything you don't want public goes here — the vault reads it, git doesn't.
-vault/private/
+scripts/extract_papers.py
 
 # ── staging / scratch ──
 _to_delete/
@@ -15,12 +13,6 @@ _incoming/
 
 # ── uv-managed environment for notebooks/ (uv.lock is committed, .venv is not) ──
 .venv/
-
-# ── Obsidian workspace state (per-machine, not content) ──
-vault/.obsidian/workspace*.json
-vault/.obsidian/cache
-vault/.trash/
-scripts/extract_papers.py
 
 # ── marimo per-machine session/layout state (not notebook content) ──
 notebooks/__marimo__/
